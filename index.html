@@ -92,7 +92,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
@@ -123,10 +123,26 @@
     `<span title="UTC">Updated ${updated.toISOString().slice(0,10)}</span>`;
   $("src").innerHTML = ` Source: <code>${data.source_url || "(seed)"}</code>.`;
 
-  // ---- legend for marker families
-  $("legend").innerHTML = Object.entries(markers.families).map(([k, v]) =>
-    `<span><i class="swatch" style="background:${v.color}"></i>${v.label}</span>`).join("") +
-    `<span style="margin-left:auto"><i class="swatch" style="background:var(--accent)"></i>Cumulative layoffs</span>`;
+  // ---- legend for marker families (clickable: toggles markers for that lab)
+  const familyState = new Map(Object.keys(markers.families).map(k => [k, true]));
+  function renderLegend() {
+    $("legend").innerHTML = Object.entries(markers.families).map(([k, v]) => {
+      const on = familyState.get(k);
+      return `<span class="fam-toggle" data-fam="${k}" style="cursor:pointer;opacity:${on?1:0.35}">
+                <i class="swatch" style="background:${v.color}"></i>${v.label}
+              </span>`;
+    }).join("") +
+    `<span style="margin-left:auto;opacity:.7"><small>click a lab to hide its markers</small></span>`;
+  }
+  renderLegend();
+  $("legend").addEventListener("click", e => {
+    const t = e.target.closest(".fam-toggle");
+    if (!t) return;
+    const fam = t.dataset.fam;
+    familyState.set(fam, !familyState.get(fam));
+    renderLegend();
+    render();
+  });
 
   // ---- industry checkboxes (top 5 default)
   const indState = new Map(data.industries.map((ind, i) => [ind, i < 5]));
@@ -159,6 +175,10 @@
   Chart.defaults.color = fgDim;
   Chart.defaults.borderColor = grid;
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  // Defensive: explicitly register annotation plugin if global is present.
+  // chartjs-plugin-annotation v3 UMD exposes itself under several possible names.
+  const annPlugin = window["chartjs-plugin-annotation"] || window.ChartAnnotation || window.annotationPlugin;
+  if (annPlugin) Chart.register(annPlugin);
 
   const labels = data.months.map(m => m + "-15"); // mid-month for cleaner placement
   let chart;
@@ -176,25 +196,33 @@
     }));
 
     const annotations = {};
-    markers.markers.forEach((m, i) => {
+    // Sort markers by date so we can stagger labels vertically and stop them overlapping.
+    const sortedMarkers = [...markers.markers]
+      .filter(m => familyState.get(m.family) !== false)
+      .sort((a,b) => a.date < b.date ? -1 : 1);
+    sortedMarkers.forEach((m, i) => {
       const fam = markers.families[m.family] || { color: "#888", label: m.family };
+      // Stagger labels across 3 vertical lanes so adjacent releases don't collide.
+      const lane = i % 3;
+      const yAdjust = -(8 + lane * 14);
       annotations["m" + i] = {
         type: "line",
         xMin: m.date,
         xMax: m.date,
         borderColor: fam.color,
-        borderWidth: 1,
-        borderDash: [4, 4],
+        borderWidth: 1.5,
+        borderDash: [3, 3],
+        drawTime: "beforeDatasetsDraw",
         label: {
           display: true,
           content: m.label,
-          position: "start",
-          rotation: -90,
-          backgroundColor: "transparent",
-          color: fam.color,
-          font: { size: 10, weight: "500" },
-          padding: { top: 0, bottom: 0, left: 4, right: 4 },
-          yAdjust: 6,
+          position: "end",                 // anchor at top of chart
+          backgroundColor: fam.color,
+          color: "#fff",
+          borderRadius: 3,
+          font: { size: 10, weight: "600" },
+          padding: { top: 2, bottom: 2, left: 5, right: 5 },
+          yAdjust,
         },
       };
     });
@@ -207,6 +235,7 @@
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        layout: { padding: { top: 56 } },   // room for staggered marker labels
         interaction: { mode: "nearest", axis: "x", intersect: false },
         plugins: {
           legend: { display: false },
