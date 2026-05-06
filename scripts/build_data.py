@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Build data/data.json from a layoffs CSV source.
+"""Build data/data.json from one or more layoffs CSV sources.
 
-Source priority (first one that yields a usable CSV wins):
+Sources are MERGED (not just first-wins): every URL that returns a usable CSV
+contributes rows; rows are de-duplicated on (company, date, num_laid_off).
+This lets us combine a frozen historical mirror with an actively-scraped
+recent feed, since no single public source covers both well.
+
+Source order:
   1. $LAYOFFS_CSV_URL                     (override; set via repo Variable or Secret)
   2. URLs in scripts/sources.txt          (one per line, '#' comments OK)
-  3. Local fallback at data/raw_layoffs.csv (committed seed)
+  3. Local fallback at data/raw_layoffs.csv (only if nothing else worked)
 
 Output schema (data/data.json):
 {
@@ -73,26 +78,32 @@ def fetch(url: str, timeout: int = 30) -> str | None:
     except Exception as exc:  # noqa: BLE001 - we want broad fallback
         print(f"  ! fetch failed: {exc}", file=sys.stderr)
         return None
-    text = raw.decode("utf-8", errors="replace")
-    # crude sanity check: must look like CSV with a header
-    if "," not in text.splitlines()[0]:
+    # utf-8-sig strips BOM (frankwang's CSV has one); errors=replace as fallback.
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("utf-8", errors="replace")
+    if not text.strip() or "," not in text.splitlines()[0]:
         print("  ! response did not look like CSV", file=sys.stderr)
         return None
     return text
 
 
-def load_csv_text() -> tuple[str, str]:
-    """Return (csv_text, source_label). Tries network first, then seed."""
+def load_sources() -> list[tuple[str, str]]:
+    """Return list of (csv_text, source_label) for every working source."""
+    out: list[tuple[str, str]] = []
     for url in candidate_urls():
         print(f"-> trying {url}", file=sys.stderr)
         text = fetch(url)
         if text:
             print(f"   OK ({len(text):,} bytes)", file=sys.stderr)
-            return text, url
-    if LOCAL_SEED.exists():
+            out.append((text, url))
+    if not out and LOCAL_SEED.exists():
         print(f"-> falling back to local seed {LOCAL_SEED}", file=sys.stderr)
-        return LOCAL_SEED.read_text(), str(LOCAL_SEED.relative_to(ROOT))
-    raise SystemExit("No layoffs CSV could be fetched and no local seed exists.")
+        out.append((LOCAL_SEED.read_text(), str(LOCAL_SEED.relative_to(ROOT))))
+    if not out:
+        raise SystemExit("No layoffs CSV could be fetched and no local seed exists.")
+    return out
 
 
 # ---------- normalising -----------------------------------------------------
@@ -104,7 +115,7 @@ COLUMN_ALIASES = {
     "date": ["date", "Date", "date_layoff", "Date_layoff"],
     "total_laid_off": [
         "total_laid_off", "Laid_Off", "Laid_Off_Count",
-        "# Laid Off", "Number Laid Off", "laid_off",
+        "# Laid Off", "Number Laid Off", "laid_off", "num_laid_off",
     ],
     "location": ["location", "Location_HQ", "Location"],
     "country": ["country", "Country"],
@@ -227,34 +238,73 @@ def aggregate(rows: Iterable[dict]) -> dict:
 
 # ---------- main ------------------------------------------------------------
 
-def main() -> int:
-    csv_text, source_label = load_csv_text()
+def rows_from_csv(csv_text: str, source_label: str) -> list[dict]:
     reader = csv.reader(io.StringIO(csv_text))
     try:
         header = next(reader)
     except StopIteration:
-        raise SystemExit("Empty CSV.")
+        print(f"  ! {source_label}: empty CSV", file=sys.stderr)
+        return []
+    # csv module preserves any leading BOM if utf-8 (not utf-8-sig) was used.
+    if header and header[0].startswith("﻿"):
+        header[0] = header[0].lstrip("﻿")
     cols = pick_columns(header)
     missing = [k for k in ("date", "total_laid_off") if not cols.get(k)]
     if missing:
-        raise SystemExit(f"Source CSV missing required columns: {missing}. Header was: {header}")
-
-    rows = []
+        print(f"  ! {source_label}: missing required columns {missing}; header={header}",
+              file=sys.stderr)
+        return []
     name_to_index = {h: i for i, h in enumerate(header)}
+    rows: list[dict] = []
     for record in reader:
         if not record:
             continue
-        out = {}
+        out: dict[str, str] = {}
         for canonical, src_name in cols.items():
             if src_name and src_name in name_to_index:
                 idx = name_to_index[src_name]
                 out[canonical] = record[idx] if idx < len(record) else ""
         rows.append(out)
+    return rows
+
+
+def dedupe(rows: list[dict]) -> list[dict]:
+    seen: set[tuple[str, str, str]] = set()
+    out: list[dict] = []
+    for r in rows:
+        key = (
+            (r.get("company") or "").strip().lower(),
+            (r.get("date") or "").strip(),
+            (r.get("total_laid_off") or "").strip(),
+        )
+        # Rows with no company AND no count we still keep (rare); only dedupe when key is meaningful.
+        if any(key) and key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+    return out
+
+
+def main() -> int:
+    sources = load_sources()
+    all_rows: list[dict] = []
+    labels: list[str] = []
+    for csv_text, label in sources:
+        rs = rows_from_csv(csv_text, label)
+        if rs:
+            print(f"   {label}: {len(rs):,} rows", file=sys.stderr)
+            all_rows.extend(rs)
+            labels.append(label)
+    if not all_rows:
+        raise SystemExit("No usable rows from any source.")
+    before = len(all_rows)
+    rows = dedupe(all_rows)
+    print(f"   merged: {before:,} → {len(rows):,} after dedupe", file=sys.stderr)
 
     agg = aggregate(rows)
     payload = {
         "generated_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0, tzinfo=None).isoformat() + "Z",
-        "source_url": source_label,
+        "source_url": " + ".join(labels),
         "source_rows": agg.pop("_rows_total"),
         "rows_used": agg.pop("_rows_used"),
         **agg,

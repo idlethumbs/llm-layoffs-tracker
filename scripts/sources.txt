@@ -8,8 +8,12 @@
 #   - a count column     (total_laid_off / Laid_Off / # Laid Off / ...)
 #   - optional: industry (industry / Industry)
 
-# Community mirror of layoffs.fyi data — full historic dataset, ~3,500 rows.
-https://raw.githubusercontent.com/bigyaa/Layoff-Prediction-Model/master/layoffs_data_fyi.csv
+# Sources are fetched in order and MERGED (rows are concatenated, then
+# de-duplicated on (company, date, num_laid_off)). The build is happy with any
+# subset of these working — empty results are skipped.
 
-# Add your own preferred mirror below; the first one that works will be used.
-# https://raw.githubusercontent.com/<user>/<repo>/<branch>/<path>.csv
+# Active scraper, updated daily via GitHub Actions. Covers ~2025-01 onward.
+https://raw.githubusercontent.com/frankwang0909/tech-layoff-tracker/main/data/raw/layoffs_raw.csv
+
+# Frozen layoffs.fyi mirror — full historic dataset 2020-03..2024-02, ~3,500 rows.
+https://raw.githubusercontent.com/bigyaa/Layoff-Prediction-Model/master/layoffs_data_fyi.csv

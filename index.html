@@ -41,7 +41,7 @@
   .toggle button.active { background: var(--accent); color: #1a1a1a; }
   .chart-wrap { position: relative; background: var(--bg-soft); border: 1px solid var(--grid);
                 border-radius: 12px; padding: 16px 12px 12px; margin-top: 12px; }
-  #chart { width: 100%; height: clamp(380px, 56vh, 620px); }
+  #chart { width: 100%; height: clamp(460px, 64vh, 720px); }
   .industries { margin-top: 16px; }
   .industries h2 { font-size: 14px; color: var(--fg-dim); margin: 0 0 8px; font-weight: 500;
                    text-transform: uppercase; letter-spacing: 0.05em; }
@@ -180,6 +180,44 @@
   const annPlugin = window["chartjs-plugin-annotation"] || window.ChartAnnotation || window.annotationPlugin;
   if (annPlugin) Chart.register(annPlugin);
 
+  // Custom plugin: paint marker labels in the bottom margin, rotated, staggered
+  // across 2 lanes — keeps them readable as a supplement to the date axis
+  // instead of clipping at the top of the chart area.
+  const markerLabelsPlugin = {
+    id: "markerLabels",
+    afterDraw(chart, _args, opts) {
+      const items = (opts && opts.items) || [];
+      if (!items.length) return;
+      const { ctx, chartArea, scales } = chart;
+      const xs = scales.x;
+      ctx.save();
+      ctx.font = `600 10px ${Chart.defaults.font.family}`;
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      items.forEach((m, i) => {
+        const t = new Date(m.date).getTime();
+        const px = xs.getPixelForValue(t);
+        if (px < chartArea.left - 1 || px > chartArea.right + 1) return;
+        // small dot anchoring the line to the x-axis
+        ctx.fillStyle = m.color;
+        ctx.beginPath();
+        ctx.arc(px, chartArea.bottom + 4, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        // alternate lanes so adjacent labels don't overlap
+        const lane = i % 2;
+        const y = chartArea.bottom + 22 + lane * 14;
+        ctx.save();
+        ctx.translate(px, y);
+        ctx.rotate(-Math.PI / 4); // -45°
+        ctx.fillStyle = m.color;
+        ctx.fillText(m.label, 0, 0);
+        ctx.restore();
+      });
+      ctx.restore();
+    },
+  };
+  Chart.register(markerLabelsPlugin);
+
   const labels = data.months.map(m => m + "-15"); // mid-month for cleaner placement
   let chart;
   function render() {
@@ -195,35 +233,27 @@
       hidden: !indState.get(ind),
     }));
 
+    // Build the dashed vertical lines (annotation plugin) and a parallel list
+    // of {date,label,color} fed to the markerLabels plugin which renders the
+    // text along the bottom axis.
     const annotations = {};
-    // Sort markers by date so we can stagger labels vertically and stop them overlapping.
     const sortedMarkers = [...markers.markers]
       .filter(m => familyState.get(m.family) !== false)
-      .sort((a,b) => a.date < b.date ? -1 : 1);
+      .sort((a, b) => a.date < b.date ? -1 : 1);
+    const markerLabelItems = sortedMarkers.map(m => {
+      const fam = markers.families[m.family] || { color: "#888", label: m.family };
+      return { date: m.date, label: m.label, color: fam.color };
+    });
     sortedMarkers.forEach((m, i) => {
       const fam = markers.families[m.family] || { color: "#888", label: m.family };
-      // Stagger labels across 3 vertical lanes so adjacent releases don't collide.
-      const lane = i % 3;
-      const yAdjust = -(8 + lane * 14);
       annotations["m" + i] = {
         type: "line",
         xMin: m.date,
         xMax: m.date,
         borderColor: fam.color,
-        borderWidth: 1.5,
+        borderWidth: 1.2,
         borderDash: [3, 3],
         drawTime: "beforeDatasetsDraw",
-        label: {
-          display: true,
-          content: m.label,
-          position: "end",                 // anchor at top of chart
-          backgroundColor: fam.color,
-          color: "#fff",
-          borderRadius: 3,
-          font: { size: 10, weight: "600" },
-          padding: { top: 2, bottom: 2, left: 5, right: 5 },
-          yAdjust,
-        },
       };
     });
 
@@ -235,7 +265,7 @@
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
-        layout: { padding: { top: 56 } },   // room for staggered marker labels
+        layout: { padding: { top: 12, bottom: 96 } }, // bottom: room for two lanes of rotated marker labels
         interaction: { mode: "nearest", axis: "x", intersect: false },
         plugins: {
           legend: { display: false },
@@ -251,6 +281,7 @@
             },
           },
           annotation: { annotations },
+          markerLabels: { items: markerLabelItems },
         },
         scales: {
           x: {
