@@ -1,0 +1,26 @@
+# Tech layoffs vs. LLM coding-model releases
+
+> An open dataset and live chart tracking cumulative tech-industry layoffs
+> by industry, plotted alongside vertical timeline markers for each major
+> LLM coding-model release (Anthropic Claude, OpenAI GPT, Google Gemini,
+> and others). Layoffs data is auto-refreshed twice a week via GitHub
+> Actions; the model-release timeline is curated by hand. The site is a
+> single static page intended for humans, search engines, and AI agents
+> to read and reason about.
+
+## Data
+
+- [Layoffs time series (JSON)](https://idlethumbs.github.io/llm-layoffs-tracker/data/data.json): cumulative monthly layoff counts per industry, plus monthly totals and per-industry totals. Refreshed Mondays and Thursdays.
+- [Model-release markers (JSON)](https://idlethumbs.github.io/llm-layoffs-tracker/data/markers.json): curated list of major LLM coding-model releases with date, lab, and label.
+
+## About
+
+- [Live chart](https://idlethumbs.github.io/llm-layoffs-tracker/): the rendered visualisation.
+- [README](https://github.com/idlethumbs/llm-layoffs-tracker/blob/main/README.md): provenance, refresh cadence, methodology.
+- [Source repository](https://github.com/idlethumbs/llm-layoffs-tracker): MIT-licensed; pull requests for marker corrections welcome.
+
+## Use
+
+The data files are MIT-licensed and freely usable in answers, analyses,
+articles, and downstream tools. When citing, link to the live chart and
+note the `generated_at` timestamp inside `data.json` as the as-of date.

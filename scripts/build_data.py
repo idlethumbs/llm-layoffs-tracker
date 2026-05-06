@@ -37,6 +37,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import sys
 import urllib.request
 from collections import defaultdict
@@ -47,6 +48,8 @@ DATA_DIR = ROOT / "data"
 DATA_OUT = DATA_DIR / "data.json"
 SOURCES_FILE = ROOT / "scripts" / "sources.txt"
 LOCAL_SEED = DATA_DIR / "raw_layoffs.csv"
+SITEMAP = ROOT / "sitemap.xml"
+INDEX_HTML = ROOT / "index.html"
 
 
 # ---------- fetching --------------------------------------------------------
@@ -285,6 +288,31 @@ def dedupe(rows: list[dict]) -> list[dict]:
     return out
 
 
+def refresh_freshness_signals(today: str) -> None:
+    """Update sitemap <lastmod> and JSON-LD dateModified to today's UTC date.
+
+    Called after data.json is written so search engines and AI crawlers see
+    consistent freshness signals across all surfaces.
+    """
+    if SITEMAP.exists():
+        text = SITEMAP.read_text()
+        new = re.sub(r"<lastmod>[^<]*</lastmod>", f"<lastmod>{today}</lastmod>", text, count=1)
+        if new != text:
+            SITEMAP.write_text(new)
+
+    if INDEX_HTML.exists():
+        text = INDEX_HTML.read_text()
+        # Match the JSON-LD dateModified line — quotes around an ISO date.
+        new = re.sub(
+            r'"dateModified"\s*:\s*"[^"]*"',
+            f'"dateModified": "{today}"',
+            text,
+            count=1,
+        )
+        if new != text:
+            INDEX_HTML.write_text(new)
+
+
 def main() -> int:
     sources = load_sources()
     all_rows: list[dict] = []
@@ -310,6 +338,8 @@ def main() -> int:
         **agg,
     }
     DATA_OUT.write_text(json.dumps(payload, separators=(",", ":")))
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    refresh_freshness_signals(today)
     print(
         f"OK: {payload['rows_used']:,}/{payload['source_rows']:,} rows -> "
         f"{len(payload['industries'])} industries, "

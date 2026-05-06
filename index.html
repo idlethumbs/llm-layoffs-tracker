@@ -5,6 +5,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Tech layoffs vs. LLM coding-model releases</title>
 <meta name="description" content="Cumulative tech layoffs by industry, with timeline markers for major LLM coding-model releases. Auto-refreshes twice a week via GitHub Actions." />
+<meta name="robots" content="index,follow,max-image-preview:large" />
+<link rel="canonical" href="https://idlethumbs.github.io/llm-layoffs-tracker/" />
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Tech layoffs vs. LLM coding-model releases" />
+<meta property="og:description" content="Cumulative tech layoffs by industry, with timeline markers for major LLM coding-model releases. Auto-refreshed twice a week." />
+<meta property="og:url" content="https://idlethumbs.github.io/llm-layoffs-tracker/" />
+<meta property="og:site_name" content="LLM Layoffs Tracker" />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Tech layoffs vs. LLM coding-model releases" />
+<meta name="twitter:description" content="Cumulative tech layoffs by industry, with timeline markers for major LLM coding-model releases." />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "Tech layoffs vs. LLM coding-model releases",
+  "description": "Cumulative monthly tech-industry layoffs by industry, paired with a curated timeline of major LLM coding-model releases (Anthropic Claude, OpenAI GPT, Google Gemini, etc.). Refreshed twice a week via GitHub Actions.",
+  "url": "https://idlethumbs.github.io/llm-layoffs-tracker/",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "creator": {
+    "@type": "Organization",
+    "name": "llm-layoffs-tracker contributors",
+    "url": "https://github.com/idlethumbs/llm-layoffs-tracker"
+  },
+  "dateModified": "2026-05-06",
+  "keywords": ["tech layoffs", "AI layoffs", "LLM", "coding models", "labor market", "Claude", "GPT", "Gemini"],
+  "distribution": [
+    {
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://idlethumbs.github.io/llm-layoffs-tracker/data/data.json"
+    },
+    {
+      "@type": "DataDownload",
+      "encodingFormat": "application/json",
+      "contentUrl": "https://idlethumbs.github.io/llm-layoffs-tracker/data/markers.json"
+    }
+  ]
+}
+</script>
 <style>
   :root {
     --bg: #0e1116;
@@ -64,6 +107,25 @@
            color: var(--fg-dim); font-size: 12px; line-height: 1.6; }
   footer a { color: var(--fg-dim); }
   .err { padding: 24px; text-align: center; color: var(--fg-dim); }
+  .news { max-width: 1100px; margin: 0 auto; padding: 8px 24px 16px; }
+  .news h2 { font-size: 14px; color: var(--fg-dim); margin: 0 0 12px; font-weight: 500;
+             text-transform: uppercase; letter-spacing: 0.05em; }
+  .news-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+               gap: 12px; }
+  .news-card { background: var(--bg-soft); border: 1px solid var(--grid); border-radius: 12px;
+               padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+               transition: border-color 0.15s ease; }
+  .news-card:hover { border-color: var(--fg-dim); }
+  .news-title { color: var(--fg); font-size: 14px; font-weight: 500; line-height: 1.4;
+                text-decoration: none;
+                display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+                overflow: hidden; }
+  .news-title:hover { color: var(--accent); }
+  .news-meta-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+                   font-size: 12px; color: var(--fg-dim); }
+  .news-hn { font-size: 12px; color: var(--fg-dim); text-decoration: none; margin-top: auto; }
+  .news-hn:hover { color: var(--fg); }
+  .news-meta { font-size: 11px; color: var(--fg-dim); margin: 12px 0 0; opacity: 0.7; }
 </style>
 </head>
 <body>
@@ -93,6 +155,11 @@
     </div>
   </div>
 </main>
+<section class="news" id="news" aria-label="Latest AI layoff coverage" hidden>
+  <h2>Latest AI layoff coverage</h2>
+  <div class="news-list" id="news-list"></div>
+  <p class="news-meta">Sourced live from Hacker News via the Algolia API. Updated on each page load.</p>
+</section>
 <footer>
   Data refreshes automatically twice a week via GitHub Actions. The layoffs feed is community-maintained;
   the model-release timeline is curated and lives in <code>data/markers.json</code> — edit it freely.
@@ -327,6 +394,111 @@
     });
   }
   render();
+})();
+</script>
+
+<script>
+// Latest news section — fully isolated from chart code. Any failure here
+// must not affect the chart above.
+(async () => {
+  const TERMS = ["layoffs", '"job cuts"', "redundancies", '"workforce reduction"', "downsizing"];
+  const ENDPOINT = "https://hn.algolia.com/api/v1/search_by_date";
+  const TOPIC_RE = /\b(AI|LLM|automation|model|agent|tech|software|engineer|coding|developer|startup|silicon|chip|robot)\b/i;
+  const MIN_POINTS = 2;
+  const MAX_CARDS = 6;
+
+  const listEl = document.getElementById("news-list");
+  const sectionEl = document.getElementById("news");
+  if (!listEl || !sectionEl) return;
+
+  try {
+    const responses = await Promise.allSettled(
+      TERMS.map(t =>
+        fetch(`${ENDPOINT}?query=${encodeURIComponent(t)}&tags=story&hitsPerPage=8`)
+          .then(r => r.ok ? r.json() : null)
+      )
+    );
+
+    const seen = new Set();
+    const merged = [];
+    for (const res of responses) {
+      if (res.status !== "fulfilled" || !res.value) continue;
+      for (const hit of (res.value.hits || [])) {
+        if (!hit || !hit.objectID || seen.has(hit.objectID)) continue;
+        seen.add(hit.objectID);
+        merged.push(hit);
+      }
+    }
+
+    const filtered = merged
+      .filter(h => (h.points || 0) >= MIN_POINTS)
+      .filter(h => h.title && TOPIC_RE.test(h.title))
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+      .slice(0, MAX_CARDS);
+
+    if (!filtered.length) return;
+
+    const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+    const relTime = iso => {
+      const diffMs = new Date(iso).getTime() - Date.now();
+      const diffH = diffMs / 36e5;
+      const diffD = diffH / 24;
+      if (Math.abs(diffH) < 24) return rtf.format(Math.round(diffH), "hour");
+      if (Math.abs(diffD) < 30) return rtf.format(Math.round(diffD), "day");
+      return rtf.format(Math.round(diffD / 30), "month");
+    };
+
+    const sourceLabel = url => {
+      try {
+        const host = new URL(url).hostname.replace(/^www\./, "");
+        return host === "news.ycombinator.com" ? "Hacker News" : host;
+      } catch { return "link"; }
+    };
+
+    const frag = document.createDocumentFragment();
+    for (const hit of filtered) {
+      const articleUrl = hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`;
+      const hnUrl = `https://news.ycombinator.com/item?id=${hit.objectID}`;
+
+      const card = document.createElement("article");
+      card.className = "news-card";
+
+      const titleA = document.createElement("a");
+      titleA.className = "news-title";
+      titleA.href = articleUrl;
+      titleA.target = "_blank";
+      titleA.rel = "noopener noreferrer";
+      titleA.textContent = hit.title;
+      card.appendChild(titleA);
+
+      const meta = document.createElement("div");
+      meta.className = "news-meta-row";
+      const src = document.createElement("span");
+      src.textContent = sourceLabel(articleUrl);
+      const sep = document.createElement("span");
+      sep.textContent = "·";
+      const date = document.createElement("span");
+      date.textContent = relTime(hit.created_at);
+      meta.append(src, sep, date);
+      card.appendChild(meta);
+
+      const hn = document.createElement("a");
+      hn.className = "news-hn";
+      hn.href = hnUrl;
+      hn.target = "_blank";
+      hn.rel = "noopener noreferrer";
+      hn.textContent = `↗ HN discussion · ${hit.num_comments || 0} comments`;
+      card.appendChild(hn);
+
+      frag.appendChild(card);
+    }
+
+    listEl.appendChild(frag);
+    sectionEl.hidden = false;
+  } catch (err) {
+    // News failed silently. Chart is unaffected. Section stays hidden.
+    console.warn("News section failed to load:", err);
+  }
 })();
 </script>
 </body>
