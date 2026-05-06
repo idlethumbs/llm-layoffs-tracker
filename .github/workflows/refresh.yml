@@ -1,0 +1,67 @@
+name: Refresh data & deploy
+
+on:
+  schedule:
+    # Mondays and Thursdays at 09:00 UTC. (GitHub may delay scheduled runs by a few minutes.)
+    - cron: "0 9 * * 1,4"
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # so the job can commit refreshed data.json
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build data.json
+        env:
+          # Optional override. Leave unset to use scripts/sources.txt order.
+          LAYOFFS_CSV_URL: ${{ vars.LAYOFFS_CSV_URL }}
+        run: python scripts/build_data.py
+
+      - name: Commit refreshed data (if changed)
+        run: |
+          if git diff --quiet -- data/data.json; then
+            echo "No data changes."
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/data.json
+            git commit -m "chore: refresh layoffs data ($(date -u +%Y-%m-%d))"
+            git push
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

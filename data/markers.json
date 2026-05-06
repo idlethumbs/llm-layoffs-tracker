@@ -1,0 +1,31 @@
+{
+  "_comment": "Curated LLM coding-model release timeline. Edit freely. Dates are public-announcement dates (best effort, US/Pacific). 'family' is used for color grouping in the chart.",
+  "markers": [
+    { "date": "2024-05-13", "family": "openai",    "label": "GPT-4o" },
+    { "date": "2024-06-20", "family": "anthropic", "label": "Claude 3.5 Sonnet" },
+    { "date": "2024-09-12", "family": "openai",    "label": "o1-preview" },
+    { "date": "2024-10-22", "family": "anthropic", "label": "Claude 3.5 Sonnet (new)" },
+    { "date": "2024-12-05", "family": "openai",    "label": "o1" },
+    { "date": "2024-12-11", "family": "google",    "label": "Gemini 2.0 Flash" },
+    { "date": "2025-01-31", "family": "openai",    "label": "o3-mini" },
+    { "date": "2025-02-05", "family": "google",    "label": "Gemini 2.0 Pro" },
+    { "date": "2025-02-24", "family": "anthropic", "label": "Claude 3.7 Sonnet" },
+    { "date": "2025-03-25", "family": "google",    "label": "Gemini 2.5 Pro" },
+    { "date": "2025-04-14", "family": "openai",    "label": "GPT-4.1" },
+    { "date": "2025-04-16", "family": "openai",    "label": "o3 / o4-mini" },
+    { "date": "2025-04-17", "family": "google",    "label": "Gemini 2.5 Flash" },
+    { "date": "2025-05-22", "family": "anthropic", "label": "Claude Sonnet 4 / Opus 4" },
+    { "date": "2025-08-05", "family": "anthropic", "label": "Claude Opus 4.1" },
+    { "date": "2025-08-07", "family": "openai",    "label": "GPT-5" },
+    { "date": "2025-09-29", "family": "anthropic", "label": "Claude Sonnet 4.5" },
+    { "date": "2025-10-15", "family": "anthropic", "label": "Claude Haiku 4.5" },
+    { "date": "2025-11-24", "family": "anthropic", "label": "Claude Opus 4.5" },
+    { "date": "2026-01-15", "family": "anthropic", "label": "Claude Sonnet 4.6" },
+    { "date": "2026-03-10", "family": "anthropic", "label": "Claude Opus 4.6" }
+  ],
+  "families": {
+    "anthropic": { "label": "Anthropic", "color": "#cc7e5b" },
+    "openai":    { "label": "OpenAI",    "color": "#10a37f" },
+    "google":    { "label": "Google",    "color": "#4285f4" }
+  }
+}

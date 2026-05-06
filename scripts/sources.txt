@@ -1,0 +1,15 @@
+# Layoffs CSV sources, tried in order. First one that returns a CSV with the
+# required columns wins. Each line is a URL; '#' starts a comment.
+#
+# Override at workflow level by setting env LAYOFFS_CSV_URL — that takes priority.
+#
+# Required columns (any of the aliases in build_data.py is fine):
+#   - a date column      (date / Date)
+#   - a count column     (total_laid_off / Laid_Off / # Laid Off / ...)
+#   - optional: industry (industry / Industry)
+
+# Community mirror of layoffs.fyi data — full historic dataset, ~3,500 rows.
+https://raw.githubusercontent.com/bigyaa/Layoff-Prediction-Model/master/layoffs_data_fyi.csv
+
+# Add your own preferred mirror below; the first one that works will be used.
+# https://raw.githubusercontent.com/<user>/<repo>/<branch>/<path>.csv

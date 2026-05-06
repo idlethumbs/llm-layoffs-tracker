@@ -1,0 +1,35 @@
+company,location,industry,total_laid_off,date,country
+SEED-Hardware,SF Bay Area,Hardware,2500,2020-03-15,United States
+SEED-Retail,New York,Retail,4000,2020-04-01,United States
+SEED-Transportation,SF Bay Area,Transportation,8000,2020-05-12,United States
+SEED-Travel,New York,Travel,3200,2020-06-04,United States
+SEED-Consumer,SF Bay Area,Consumer,1500,2020-08-20,United States
+SEED-Crypto,SF Bay Area,Crypto,500,2021-09-01,United States
+SEED-Finance,New York,Finance,800,2022-04-15,United States
+SEED-Crypto,SF Bay Area,Crypto,3500,2022-06-14,United States
+SEED-Consumer,SF Bay Area,Consumer,11000,2022-11-09,United States
+SEED-Hardware,SF Bay Area,Hardware,10000,2022-11-14,United States
+SEED-Retail,Seattle,Retail,18000,2023-01-04,United States
+SEED-Hardware,SF Bay Area,Hardware,12000,2023-01-18,United States
+SEED-Consumer,SF Bay Area,Consumer,11000,2023-01-20,United States
+SEED-Finance,New York,Finance,9000,2023-03-22,United States
+SEED-Healthcare,Boston,Healthcare,4200,2023-05-10,United States
+SEED-Crypto,SF Bay Area,Crypto,2500,2023-06-13,United States
+SEED-Retail,Seattle,Retail,5000,2023-11-15,United States
+SEED-Hardware,SF Bay Area,Hardware,6000,2024-01-22,United States
+SEED-Consumer,SF Bay Area,Consumer,3500,2024-02-14,United States
+SEED-Finance,New York,Finance,2800,2024-04-09,United States
+SEED-Retail,Seattle,Retail,4500,2024-07-23,United States
+SEED-Healthcare,Boston,Healthcare,2200,2024-09-30,United States
+SEED-Hardware,SF Bay Area,Hardware,5500,2025-01-15,United States
+SEED-Consumer,SF Bay Area,Consumer,4200,2025-02-12,United States
+SEED-Finance,New York,Finance,3100,2025-03-18,United States
+SEED-Retail,Seattle,Retail,3700,2025-04-22,United States
+SEED-Healthcare,Boston,Healthcare,1900,2025-05-14,United States
+SEED-Hardware,SF Bay Area,Hardware,4800,2025-07-08,United States
+SEED-Consumer,SF Bay Area,Consumer,3900,2025-09-12,United States
+SEED-Finance,New York,Finance,2600,2025-11-04,United States
+SEED-Hardware,SF Bay Area,Hardware,3200,2026-01-20,United States
+SEED-Consumer,SF Bay Area,Consumer,2800,2026-02-15,United States
+SEED-Retail,Seattle,Retail,2400,2026-03-10,United States
+SEED-Finance,New York,Finance,1900,2026-04-05,United States
