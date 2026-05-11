@@ -19,9 +19,14 @@
     { "date": "2025-08-07", "family": "openai",    "label": "GPT-5" },
     { "date": "2025-09-29", "family": "anthropic", "label": "Claude Sonnet 4.5" },
     { "date": "2025-10-15", "family": "anthropic", "label": "Claude Haiku 4.5" },
+    { "date": "2025-11-12", "family": "openai",    "label": "GPT-5.1" },
+    { "date": "2025-11-18", "family": "google",    "label": "Gemini 3 Pro" },
     { "date": "2025-11-24", "family": "anthropic", "label": "Claude Opus 4.5" },
     { "date": "2026-01-15", "family": "anthropic", "label": "Claude Sonnet 4.6" },
-    { "date": "2026-03-10", "family": "anthropic", "label": "Claude Opus 4.6" }
+    { "date": "2026-02-19", "family": "google",    "label": "Gemini 3.1 Pro" },
+    { "date": "2026-03-10", "family": "anthropic", "label": "Claude Opus 4.6" },
+    { "date": "2026-04-16", "family": "anthropic", "label": "Claude Opus 4.7" },
+    { "date": "2026-04-23", "family": "openai",    "label": "GPT-5.5" }
   ],
   "families": {
     "anthropic": { "label": "Anthropic", "color": "#cc7e5b" },
